@@ -23,6 +23,19 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage"
+    - name: Install ReportGenerator
+      run: dotnet tool install --global dotnet-reportgenerator-globaltool
+    - name: Check Code Coverage
+      run: |
+        reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:"JsonSummary"
+        $json = Get-Content "coverage-report/Summary.json" | ConvertFrom-Json
+        $lineRate = [math]::Round($json.summary.linecoverage, 2)
+        Write-Host "Line Coverage: $lineRate%"
+        if ($lineRate -lt 95) {
+          Write-Error "Code coverage ($lineRate%) is below the required threshold of 95%"
+          exit 1
+        }
+      shell: pwsh
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
       with:
