@@ -24,4 +24,10 @@
     <ProjectReference Include="..\CompactFrameFormat\CompactFrameFormat.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="TestData\*.bin">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
