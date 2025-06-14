@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+
+    <!-- NuGet metadata -->
+    <PackageId>CompactFrameFormat</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>R. Keelan</Authors>
+    <Description>C# reference implementation of Compact Frame Format, a simple, low-overhead frame format designed for fast, reliable serial links.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/CompactFrameFormat/cff-csharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+</Project>
