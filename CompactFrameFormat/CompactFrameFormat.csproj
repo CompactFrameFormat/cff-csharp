@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
 
     <!-- NuGet metadata -->
     <PackageId>CompactFrameFormat</PackageId>
@@ -12,5 +14,9 @@
     <RepositoryUrl>https://github.com/CompactFrameFormat/cff-csharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Memory" Version="4.5.4" />
+  </ItemGroup>
 
 </Project>
