@@ -7,16 +7,21 @@
 
     <!-- NuGet metadata -->
     <PackageId>CompactFrameFormat</PackageId>
-    <Version>0.1.0</Version>
+    <Version>1.0.0-rc1</Version>
     <Authors>R. Keelan</Authors>
     <Description>C# reference implementation of Compact Frame Format, a simple, low-overhead frame format designed for fast, reliable serial links.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/CompactFrameFormat/cff-csharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="System.Memory" Version="4.5.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>
