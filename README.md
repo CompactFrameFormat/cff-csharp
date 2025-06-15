@@ -44,7 +44,168 @@ Both CRCs are calculated using CRC-16/CCITT-FALSE, with the following settings:
 - XorOut: 0x0000
 - Check("123456789): 0x29B1l
 
-## Setup
+## Usage
+
+### Installation
+
+Install the NuGet package:
+
+```powershell
+dotnet add package CompactFrameFormat
+```
+
+Or via Package Manager Console:
+
+```powershell
+Install-Package CompactFrameFormat
+```
+
+### API Reference
+
+The CFF library provides three main methods for working with frames:
+
+#### Creating Frames
+
+Use `CreateFrame` to encode payload data into a CFF frame:
+
+```csharp
+using CompactFrameFormat;
+
+// Create a frame with string payload
+var payload = Encoding.UTF8.GetBytes("Hello, World!");
+ushort frameCounter = 42;
+byte[] frame = Cff.CreateFrame(payload, frameCounter);
+
+// Frame now contains the complete CFF frame ready for transmission
+Console.WriteLine($"Created frame of {frame.Length} bytes");
+Console.WriteLine($"Frame bytes: {Convert.ToHexString(frame)}");
+```
+
+#### Parsing Single Frames
+
+Use `TryParseFrame` to parse a single frame from byte data:
+
+```csharp
+using CompactFrameFormat;
+
+// First create a frame to parse
+var payload = Encoding.UTF8.GetBytes("Test Message");
+ushort frameCounter = 123;
+byte[] receivedData = Cff.CreateFrame(payload, frameCounter);
+
+var result = Cff.TryParseFrame(receivedData, out CFrame parsedFrame, out int consumedBytes);
+
+switch (result)
+{
+    case FrameParseResult.Success:
+        Console.WriteLine($"Frame counter: {parsedFrame.FrameCounter}");
+        Console.WriteLine($"Payload: {Encoding.UTF8.GetString(parsedFrame.Payload.Span)}");
+        Console.WriteLine($"Consumed {consumedBytes} bytes");
+        break;
+
+    case FrameParseResult.InsufficientData:
+        Console.WriteLine("Need more data to complete frame");
+        break;
+
+    case FrameParseResult.InvalidPreamble:
+        Console.WriteLine("Invalid frame preamble");
+        break;
+
+    case FrameParseResult.InvalidHeaderCrc:
+        Console.WriteLine("Header CRC validation failed");
+        break;
+
+    case FrameParseResult.InvalidPayloadCrc:
+        Console.WriteLine("Payload CRC validation failed");
+        break;
+}
+```
+
+#### Finding Multiple Frames
+
+Use `FindFrames` to locate and parse all valid frames in a data buffer:
+
+```csharp
+using CompactFrameFormat;
+
+// Create multiple frames and combine them into a single buffer
+var messages = new[] { "Frame 1", "Frame 2", "Frame 3" };
+var buffer = new List<byte>();
+
+// Create frames and add them to buffer
+for (ushort i = 0; i < messages.Length; i++)
+{
+    var payload = Encoding.UTF8.GetBytes(messages[i]);
+    var frame = Cff.CreateFrame(payload, i);
+    buffer.AddRange(frame);
+}
+
+// Add some noise/corrupted data
+buffer.AddRange(new byte[] { 0x00, 0x11, 0x22, 0x33 });
+
+byte[] dataBuffer = buffer.ToArray();
+Console.WriteLine($"Buffer contains {dataBuffer.Length} bytes total");
+
+var frames = Cff.FindFrames(dataBuffer);
+
+foreach ((CFrame frame, int position) in frames)
+{
+    Console.WriteLine($"Found frame at position {position}:");
+    Console.WriteLine($"  Frame counter: {frame.FrameCounter}");
+    Console.WriteLine($"  Payload size: {frame.PayloadSizeBytes} bytes");
+    Console.WriteLine($"  Frame size: {frame.FrameSizeBytes} bytes");
+
+    // Process payload
+    var payloadText = Encoding.UTF8.GetString(frame.Payload.Span);
+    Console.WriteLine($"  Payload: {payloadText}");
+}
+```
+
+### Complete Example
+
+```csharp
+using System;
+using System.Text;
+using CompactFrameFormat;
+
+class Program
+{
+    static void Main()
+    {
+        // Create and send frames
+        var messages = new[] { "Hello", "World", "CFF" };
+        var buffer = new byte[1024];
+        int bufferPos = 0;
+
+        Console.WriteLine("Creating frames:");
+        for (ushort i = 0; i < messages.Length; i++)
+        {
+            var payload = Encoding.UTF8.GetBytes(messages[i]);
+            var frame = Cff.CreateFrame(payload, i);
+
+            Console.WriteLine($"  Frame {i}: {messages[i]} -> {frame.Length} bytes");
+
+            // Simulate adding to receive buffer
+            Array.Copy(frame, 0, buffer, bufferPos, frame.Length);
+            bufferPos += frame.Length;
+        }
+
+        Console.WriteLine($"\nBuffer contains {bufferPos} bytes total");
+
+        // Parse all frames from buffer
+        var receivedFrames = Cff.FindFrames(buffer.AsMemory(0, bufferPos));
+
+        Console.WriteLine("\nReceived frames:");
+        foreach ((var frame, int pos) in receivedFrames)
+        {
+            var message = Encoding.UTF8.GetString(frame.Payload.Span);
+            Console.WriteLine($"  Frame {frame.FrameCounter} at pos {pos}: {message}");
+        }
+    }
+}
+```
+
+## Development
 
 Clone the repository:
 ```powershell
@@ -60,6 +221,5 @@ dotnet build
 
 Run Tests:
 ```powershell
-cd CSharp
 dotnet test
 ```
