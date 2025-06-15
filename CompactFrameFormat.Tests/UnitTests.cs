@@ -109,16 +109,19 @@ public class UnitTests
     [Test]
     public void FindFrames_WithEmptyData_ReturnsEmpty()
     {
-        var result = Cff.FindFrames(Array.Empty<byte>()).ToList();
+        var result = Cff.FindFrames(Array.Empty<byte>(), out var consumedBytes).ToList();
         Assert.That(result, Is.Empty);
+        Assert.That(consumedBytes, Is.EqualTo(0));
     }
 
     [Test]
     public void FindFrames_WithNoPreamble_ReturnsEmpty()
     {
         var dataWithoutPreamble = new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
-        var result = Cff.FindFrames(dataWithoutPreamble).ToList();
+        var result = Cff.FindFrames(dataWithoutPreamble, out var consumedBytes).ToList();
         Assert.That(result, Is.Empty);
+        // When no preamble is found, we can discard all but the last byte
+        Assert.That(consumedBytes, Is.EqualTo(dataWithoutPreamble.Length - 1));
     }
 
     [Test]
@@ -129,11 +132,12 @@ public class UnitTests
         var invalidData = new byte[] { Cff.PREAMBLE_BYTE_1, Cff.PREAMBLE_BYTE_2, 0xFF, 0xFF, 0xFF, 0xFF };
         var combinedData = invalidData.Concat(validFrame).ToArray();
         
-        var result = Cff.FindFrames(combinedData).ToList();
+        var result = Cff.FindFrames(combinedData, out var consumedBytes).ToList();
         
         // Should find the valid frame, skipping the invalid one
         Assert.That(result.Count, Is.EqualTo(1));
-        Assert.That(result[0].Frame.FrameCounter, Is.EqualTo(100));
+        Assert.That(result[0].FrameCounter, Is.EqualTo(100));
+        Assert.That(consumedBytes, Is.EqualTo(combinedData.Length));
     }
 
     [Test]
@@ -186,11 +190,12 @@ public class UnitTests
         var frame2 = Cff.CreateFrame("test2"u8, 2);
         var combinedData = frame1.Concat(frame2).ToArray();
         
-        var result = Cff.FindFrames(combinedData).ToList();
+        var result = Cff.FindFrames(combinedData, out var consumedBytes).ToList();
         
         Assert.That(result.Count, Is.EqualTo(2));
-        Assert.That(result[0].Frame.FrameCounter, Is.EqualTo(1));
-        Assert.That(result[1].Frame.FrameCounter, Is.EqualTo(2));
+        Assert.That(result[0].FrameCounter, Is.EqualTo(1));
+        Assert.That(result[1].FrameCounter, Is.EqualTo(2));
+        Assert.That(consumedBytes, Is.EqualTo(combinedData.Length));
     }
 
     [Test]
@@ -206,5 +211,29 @@ public class UnitTests
         Assert.That(result, Is.EqualTo(FrameParseResult.Success));
         Assert.That(parsedFrame.FrameCounter, Is.EqualTo(999));
         Assert.That(parsedFrame.PayloadSizeBytes, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void FindFrames_ConsumedBytes_ReflectsProcessedData()
+    {
+        // Create test data with valid frames and some garbage
+        var frame1 = Cff.CreateFrame("test1"u8, 1);
+        var frame2 = Cff.CreateFrame("test2"u8, 2);
+        var garbageData = new byte[] { 0x11, 0x22, 0x33, 0x44 };
+        
+        var combinedData = frame1.Concat(frame2).Concat(garbageData).ToArray();
+        
+        var frames = Cff.FindFrames(combinedData, out var consumedBytes).ToList();
+        
+        // Should find both frames
+        Assert.That(frames.Count, Is.EqualTo(2));
+        Assert.That(frames[0].FrameCounter, Is.EqualTo(1));
+        Assert.That(frames[1].FrameCounter, Is.EqualTo(2));
+        
+        // consumedBytes should be the total length since all valid frames were processed
+        // and the garbage at the end was searched through
+        var expectedConsumed = frame1.Length + frame2.Length + garbageData.Length - 1;
+        Assert.That(consumedBytes, Is.EqualTo(expectedConsumed), 
+            "consumedBytes should reflect all processed data except last byte");
     }
 } 

@@ -146,11 +146,13 @@ buffer.AddRange(new byte[] { 0x00, 0x11, 0x22, 0x33 });
 byte[] dataBuffer = buffer.ToArray();
 Console.WriteLine($"Buffer contains {dataBuffer.Length} bytes total");
 
-var frames = Cff.FindFrames(dataBuffer);
+var frames = Cff.FindFrames(dataBuffer, out var consumedBytes);
 
-foreach ((CFrame frame, int position) in frames)
+Console.WriteLine($"Processed {consumedBytes} bytes, found {frames.Count()} frames");
+
+foreach (var frame in frames)
 {
-    Console.WriteLine($"Found frame at position {position}:");
+    Console.WriteLine($"Found frame:");
     Console.WriteLine($"  Frame counter: {frame.FrameCounter}");
     Console.WriteLine($"  Payload size: {frame.PayloadSizeBytes} bytes");
     Console.WriteLine($"  Frame size: {frame.FrameSizeBytes} bytes");
@@ -193,13 +195,14 @@ class Program
         Console.WriteLine($"\nBuffer contains {bufferPos} bytes total");
 
         // Parse all frames from buffer
-        var receivedFrames = Cff.FindFrames(buffer.AsMemory(0, bufferPos));
+        var receivedFrames = Cff.FindFrames(buffer.AsMemory(0, bufferPos), out var consumedBytes);
 
-        Console.WriteLine("\nReceived frames:");
-        foreach ((var frame, int pos) in receivedFrames)
+        Console.WriteLine($"\nProcessed {consumedBytes} bytes from buffer");
+        Console.WriteLine("Received frames:");
+        foreach (var frame in receivedFrames)
         {
             var message = Encoding.UTF8.GetString(frame.Payload.Span);
-            Console.WriteLine($"  Frame {frame.FrameCounter} at pos {pos}: {message}");
+            Console.WriteLine($"  Frame {frame.FrameCounter}: {message}");
         }
     }
 }

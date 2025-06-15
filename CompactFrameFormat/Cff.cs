@@ -96,11 +96,11 @@ namespace CompactFrameFormat
 
             for (int i = 0; i < 256; i++) {
                 ushort crc = (ushort)(i << 8);
-                for (int j = 0; j < 8; j++){
-                    if ((crc & 0x8000) != 0){
+                for (int j = 0; j < 8; j++) {
+                    if ((crc & 0x8000) != 0) {
                         crc = (ushort)((crc << 1) ^ polynomial);
                     }
-                    else{
+                    else {
                         crc = (ushort)(crc << 1);
                     }
                 }
@@ -120,7 +120,7 @@ namespace CompactFrameFormat
         {
             ushort crc = 0xFFFF; // Init value for CRC-16/CCITT-FALSE
 
-            foreach (byte b in data){
+            foreach (byte b in data) {
                 byte tableIndex = (byte)((crc >> 8) ^ b);
                 crc = (ushort)((crc << 8) ^ Crc16Table[tableIndex]);
             }
@@ -137,8 +137,9 @@ namespace CompactFrameFormat
         /// <exception cref="ArgumentException">Thrown when payload is too large</exception>
         public static byte[] CreateFrame(ReadOnlySpan<byte> payload, ushort frameCounter)
         {
-            if (payload.Length > MAX_PAYLOAD_SIZE_BYTES)
+            if (payload.Length > MAX_PAYLOAD_SIZE_BYTES) {
                 throw new ArgumentException($"Payload size {payload.Length} exceeds maximum of {MAX_PAYLOAD_SIZE_BYTES}", nameof(payload));
+            }
 
             var payloadSize = (ushort)payload.Length;
             var frame = new byte[HEADER_SIZE_BYTES + payload.Length + PAYLOAD_CRC_SIZE_BYTES];
@@ -237,20 +238,22 @@ namespace CompactFrameFormat
         /// Finds all valid frames in the given data buffer
         /// </summary>
         /// <param name="data">The data buffer to search</param>
-        /// <returns>An enumerable of successfully parsed frames with their byte positions</returns>
-        public static IEnumerable<(CFrame Frame, int Position)> FindFrames(byte[] data)
+        /// <param name="consumedBytes">The number of bytes from the start of the buffer that can be safely discarded because they are guaranteed not to contain a valid frame</param>
+        /// <returns>An enumerable of successfully parsed frames</returns>
+        public static IEnumerable<CFrame> FindFrames(byte[] data, out int consumedBytes)
         {
-            return FindFrames(data.AsMemory());
+            return FindFrames(data.AsMemory(), out consumedBytes);
         }
 
         /// <summary>
         /// Finds all valid frames in the given data buffer
         /// </summary>
         /// <param name="data">The data buffer to search</param>
-        /// <returns>An enumerable of successfully parsed frames with their byte positions</returns>
-        public static IEnumerable<(CFrame Frame, int Position)> FindFrames(ReadOnlyMemory<byte> data)
+        /// <param name="consumedBytes">The number of bytes from the start of the buffer that can be safely discarded because they are guaranteed not to contain a valid frame</param>
+        /// <returns>An enumerable of successfully parsed frames</returns>
+        public static IEnumerable<CFrame> FindFrames(ReadOnlyMemory<byte> data, out int consumedBytes)
         {
-            var results = new List<(CFrame Frame, int Position)>();
+            var results = new List<CFrame>();
             int position = 0;
             var dataSpan = data.Span;
 
@@ -258,16 +261,19 @@ namespace CompactFrameFormat
                 // Look for preamble
                 var preambleIndex = FindPreamble(dataSpan.Slice(position));
                 if (preambleIndex == -1) {
+                    // No preamble found in remaining data
+                    // We can safely discard all but the last byte (which could be start of preamble)
+                    position = Math.Max(0, dataSpan.Length - 1);
                     break;
                 }
 
                 position += preambleIndex;
 
                 // Try to parse frame at this position
-                var result = TryParseFrame(dataSpan.Slice(position), out var frame, out var consumedBytes);
+                var result = TryParseFrame(dataSpan.Slice(position), out var frame, out var frameConsumedBytes);
                 if (result == FrameParseResult.Success) {
-                    results.Add((frame, position));
-                    position += consumedBytes;
+                    results.Add(frame);
+                    position += frameConsumedBytes;
                 }
                 else if (result == FrameParseResult.InsufficientData) {
                     // Not enough data for a complete frame, stop searching
@@ -279,6 +285,9 @@ namespace CompactFrameFormat
                 }
             }
 
+            // Set consumedBytes to the current search position
+            // This represents bytes that can be safely discarded from the input buffer
+            consumedBytes = position;
             return results;
         }
 

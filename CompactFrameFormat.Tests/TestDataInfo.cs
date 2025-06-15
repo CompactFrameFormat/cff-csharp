@@ -22,8 +22,7 @@ public class TestDataInfoTests
         TestContext.Out.WriteLine($"Found {frameFiles.Count} test frame files:");
         TestContext.Out.WriteLine("=================================================");
         
-        foreach (var frameFile in frameFiles)
-        {
+        foreach (var frameFile in frameFiles) {
             var fileName = Path.GetFileName(frameFile);
             var fileSize = new FileInfo(frameFile).Length;
             
@@ -31,15 +30,13 @@ public class TestDataInfoTests
             var frameData = File.ReadAllBytes(frameFile);
             var result = Cff.TryParseFrame(frameData, out var frame, out var consumedBytes);
             
-            if (result == FrameParseResult.Success)
-            {
+            if (result == FrameParseResult.Success) {
                 var payloadPreview = GetPayloadPreview(frame.Payload.ToArray());
                 TestContext.Out.WriteLine($"File: {fileName,-25} Size: {fileSize,4} bytes  " +
                                     $"Counter: {frame.FrameCounter,5}  Payload: {frame.PayloadSizeBytes,4} bytes  " +
                                     $"Preview: {payloadPreview}");
             }
-            else
-            {
+            else {
                 TestContext.Out.WriteLine($"File: {fileName,-25} Size: {fileSize,4} bytes  " +
                                     $"ERROR: {result}");
             }
@@ -47,15 +44,14 @@ public class TestDataInfoTests
         
         // Test stream file
         var streamFile = Path.Combine(testDataDir, "stream.bin");
-        if (File.Exists(streamFile))
-        {
+        if (File.Exists(streamFile)) {
             var streamSize = new FileInfo(streamFile).Length;
             TestContext.Out.WriteLine("=================================================");
             TestContext.Out.WriteLine($"Stream file: stream.bin       Size: {streamSize,4} bytes");
             
             // Count frames in stream
             var streamData = File.ReadAllBytes(streamFile);
-            var frameCount = Cff.FindFrames(streamData).Count();
+            var frameCount = Cff.FindFrames(streamData, out var consumedBytes).Count();
             TestContext.Out.WriteLine($"Frames in stream: {frameCount}");
         }
         
@@ -74,16 +70,14 @@ public class TestDataInfoTests
         if (payload.Length == 0)
             return "[empty]";
         
-        if (payload.Length <= 20)
-        {
+        if (payload.Length <= 20) {
             // Try to display as text if it's printable
             if (payload.All(b => b >= 32 && b <= 126))
                 return $"\"{System.Text.Encoding.ASCII.GetString(payload)}\"";
             else
                 return $"[{string.Join(" ", payload.Select(b => b.ToString("X2")))}]";
         }
-        else
-        {
+        else {
             // For larger payloads, show first few bytes and length
             var preview = string.Join(" ", payload.Take(8).Select(b => b.ToString("X2")));
             return $"[{preview}...] ({payload.Length} bytes)";

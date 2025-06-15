@@ -45,8 +45,7 @@ public class CompactFrameFormatIntegrationTests
     {
         // Verify files are properly named and numbered
         var expectedNumbers = new HashSet<int>();
-        foreach (var frameFile in _frameFiles)
-        {
+        foreach (var frameFile in _frameFiles) {
             var basename = Path.GetFileName(frameFile);
             var match = Regex.Match(basename, @"^(\d+)_.*\.bin$");
             Assert.That(match.Success, $"Frame file {basename} doesn't match expected naming pattern");
@@ -62,8 +61,7 @@ public class CompactFrameFormatIntegrationTests
     [Test]
     public void AllFrameFiles_CanBeParsed_Successfully()
     {
-        foreach (var frameFile in _frameFiles)
-        {
+        foreach (var frameFile in _frameFiles) {
             var frameData = File.ReadAllBytes(frameFile);
             var result = Cff.TryParseFrame(frameData, out var frame, out var consumedBytes);
             
@@ -92,8 +90,7 @@ public class CompactFrameFormatIntegrationTests
     {
         // First, get expected payloads from individual frame files
         var expectedPayloads = new List<byte[]>();
-        foreach (var frameFile in _frameFiles)
-        {
+        foreach (var frameFile in _frameFiles) {
             var frameData = File.ReadAllBytes(frameFile);
             var result = Cff.TryParseFrame(frameData, out var frame, out _);
             Assert.That(result, Is.EqualTo(FrameParseResult.Success));
@@ -105,20 +102,20 @@ public class CompactFrameFormatIntegrationTests
         var parsedPayloads = new List<byte[]>();
         var remainingData = streamData.AsSpan();
         
-        while (remainingData.Length > 0)
-        {
-            var frames = Cff.FindFrames(remainingData.ToArray()).ToList();
+        while (remainingData.Length > 0) {
+            var frames = Cff.FindFrames(remainingData.ToArray(), out var consumedBytes).ToList();
             if (frames.Count == 0)
                 break;
                 
-            var (frame, position) = frames[0];
-            parsedPayloads.Add(frame.Payload.ToArray());
+            // Process all frames found in this pass
+            foreach (var frame in frames) {
+                parsedPayloads.Add(frame.Payload.ToArray());
+            }
             
-            // Advance past this complete frame
-            var nextPos = position + frame.FrameSizeBytes;
-            if (nextPos >= remainingData.Length)
-                break;
-            remainingData = remainingData.Slice(nextPos);
+            // Use consumedBytes to advance efficiently through processed data
+            if (consumedBytes > 0) {
+                remainingData = remainingData.Slice(Math.Min(consumedBytes, remainingData.Length));
+            }
         }
         
         // Verify we got the expected number of payloads
@@ -126,8 +123,7 @@ public class CompactFrameFormatIntegrationTests
             $"Expected {expectedPayloads.Count} payloads, found {parsedPayloads.Count}");
         
         // Verify each payload matches expected
-        for (int i = 0; i < expectedPayloads.Count; i++)
-        {
+        for (int i = 0; i < expectedPayloads.Count; i++) {
             Assert.That(parsedPayloads[i], Is.EqualTo(expectedPayloads[i]), 
                 $"Payload {i + 1} mismatch");
         }
@@ -140,8 +136,7 @@ public class CompactFrameFormatIntegrationTests
         var payloads = new List<byte[]>();
         var frameCounters = new List<ushort>();
         
-        foreach (var frameFile in _frameFiles)
-        {
+        foreach (var frameFile in _frameFiles) {
             var frameData = File.ReadAllBytes(frameFile);
             var result = Cff.TryParseFrame(frameData, out var frame, out _);
             Assert.That(result, Is.EqualTo(FrameParseResult.Success));
@@ -151,8 +146,7 @@ public class CompactFrameFormatIntegrationTests
         
         // Recreate stream using the original frame counters
         var recreatedStream = new List<byte>();
-        for (int i = 0; i < payloads.Count; i++)
-        {
+        for (int i = 0; i < payloads.Count; i++) {
             var frame = Cff.CreateFrame(payloads[i], frameCounters[i]);
             recreatedStream.AddRange(frame);
         }
@@ -172,8 +166,7 @@ public class CompactFrameFormatIntegrationTests
     {
         // Step 1: Load payloads from individual frame files
         var originalPayloads = new List<byte[]>();
-        foreach (var frameFile in _frameFiles)
-        {
+        foreach (var frameFile in _frameFiles) {
             var frameData = File.ReadAllBytes(frameFile);
             var result = Cff.TryParseFrame(frameData, out var frame, out _);
             Assert.That(result, Is.EqualTo(FrameParseResult.Success));
@@ -183,8 +176,7 @@ public class CompactFrameFormatIntegrationTests
         // Step 2: Create a stream from these payloads (using sequential frame counters)
         var createdStream = new List<byte>();
         ushort frameCounter = 0;
-        foreach (var payload in originalPayloads)
-        {
+        foreach (var payload in originalPayloads) {
             var frame = Cff.CreateFrame(payload, frameCounter++);
             createdStream.AddRange(frame);
         }
@@ -193,28 +185,27 @@ public class CompactFrameFormatIntegrationTests
         var parsedPayloads = new List<byte[]>();
         var remainingData = createdStream.ToArray().AsSpan();
         
-        while (remainingData.Length > 0)
-        {
-            var frames = Cff.FindFrames(remainingData.ToArray()).ToList();
+        while (remainingData.Length > 0) {
+            var frames = Cff.FindFrames(remainingData.ToArray(), out var consumedBytes).ToList();
             if (frames.Count == 0)
                 break;
                 
-            var (frame, position) = frames[0];
-            parsedPayloads.Add(frame.Payload.ToArray());
+            // Process all frames found in this pass
+            foreach (var frame in frames) {
+                parsedPayloads.Add(frame.Payload.ToArray());
+            }
             
-            // Advance past this frame
-            var nextPos = position + frame.FrameSizeBytes;
-            if (nextPos >= remainingData.Length)
-                break;
-            remainingData = remainingData.Slice(nextPos);
+            // Use consumedBytes to advance efficiently through processed data
+            if (consumedBytes > 0) {
+                remainingData = remainingData.Slice(Math.Min(consumedBytes, remainingData.Length));
+            }
         }
         
         // Step 4: Verify the payloads match
         Assert.That(parsedPayloads.Count, Is.EqualTo(originalPayloads.Count), 
             $"Payload count mismatch: {parsedPayloads.Count} vs {originalPayloads.Count}");
         
-        for (int i = 0; i < originalPayloads.Count; i++)
-        {
+        for (int i = 0; i < originalPayloads.Count; i++) {
             Assert.That(parsedPayloads[i], Is.EqualTo(originalPayloads[i]), 
                 $"Payload {i + 1} mismatch in end-to-end workflow");
         }
@@ -224,47 +215,50 @@ public class CompactFrameFormatIntegrationTests
     public void FrameBoundaryDetection_InStreamData()
     {
         var streamData = File.ReadAllBytes(_streamFile);
-        var framesFound = new List<(int Position, int Length, int PayloadSize, ushort FrameCounter)>();
+        var framesFound = new List<(int Length, int PayloadSize, ushort FrameCounter)>();
         var remainingData = streamData.AsSpan();
-        var processedBytes = 0;
         
-        while (remainingData.Length > 0)
-        {
-            var frames = Cff.FindFrames(remainingData.ToArray()).ToList();
+        while (remainingData.Length > 0) {
+            var frames = Cff.FindFrames(remainingData.ToArray(), out var consumedBytes).ToList();
             if (frames.Count == 0)
                 break;
                 
-            var (frame, position) = frames[0];
+            // Process all frames found in this pass
+            foreach (var frame in frames) {
+                // Record frame info (position tracking is no longer available from FindFrames)
+                var frameInfo = (
+                    Length: frame.FrameSizeBytes,
+                    PayloadSize: frame.PayloadSizeBytes,
+                    FrameCounter: frame.FrameCounter
+                );
+                framesFound.Add(frameInfo);
+            }
             
-            // Record frame info
-            var frameInfo = (
-                Position: processedBytes + position,
-                Length: frame.FrameSizeBytes,
-                PayloadSize: frame.PayloadSizeBytes,
-                FrameCounter: frame.FrameCounter
-            );
-            framesFound.Add(frameInfo);
-            
-            // Advance to next frame
-            var nextPos = position + frame.FrameSizeBytes;
-            if (nextPos >= remainingData.Length)
-                break;
-            processedBytes += nextPos;
-            remainingData = remainingData.Slice(nextPos);
+            // Use consumedBytes to advance efficiently through processed data
+            if (consumedBytes > 0) {
+                remainingData = remainingData.Slice(Math.Min(consumedBytes, remainingData.Length));
+            }
         }
         
-        // Verify frames don't overlap and are properly positioned
+        // Verify we found frames and they have reasonable properties
         Assert.That(framesFound.Count, Is.GreaterThan(0), "Should find at least one frame in stream");
         
-        // Check frame positions are sequential
-        for (int i = 1; i < framesFound.Count; i++)
-        {
-            var prevFrame = framesFound[i - 1];
-            var currFrame = framesFound[i];
-            
-            var prevEnd = prevFrame.Position + prevFrame.Length;
-            Assert.That(currFrame.Position, Is.GreaterThanOrEqualTo(prevEnd), 
-                $"Frame {i} overlaps with frame {i - 1}");
+        // Verify all frames have positive lengths
+        foreach (var frame in framesFound) {
+            Assert.That(frame.Length, Is.GreaterThan(0), "Frame length should be positive");
+            Assert.That(frame.PayloadSize, Is.GreaterThanOrEqualTo(0), "Payload size should be non-negative");
+        }
+        
+        // Verify frame counters are valid and unique
+        var frameCounters = framesFound.Select(f => f.FrameCounter).ToList();
+        var uniqueCounters = new HashSet<ushort>(frameCounters);
+        Assert.That(uniqueCounters.Count, Is.EqualTo(frameCounters.Count), 
+            "All frame counters should be unique");
+        
+        // Verify frame counters are within expected range (based on test data)
+        foreach (var counter in frameCounters) {
+            Assert.That(counter, Is.GreaterThanOrEqualTo(0), "Frame counter should be non-negative");
+            Assert.That(counter, Is.LessThan(1000), "Frame counter should be reasonable");
         }
     }
 
@@ -277,27 +271,31 @@ public class CompactFrameFormatIntegrationTests
         var corruptedStart = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }
             .Concat(streamData).ToArray();
         
-        var frames = Cff.FindFrames(corruptedStart).ToList();
-        if (streamData.Length > 0)
-        {
+        var frames = Cff.FindFrames(corruptedStart, out var consumedBytes1).ToList();
+        if (streamData.Length > 0) {
             // Should still find frames despite garbage at start
             Assert.That(frames.Count, Is.GreaterThan(0), 
                 "Should find frames despite garbage at start");
+            // Verify that consumedBytes indicates data was processed
+            Assert.That(consumedBytes1, Is.GreaterThan(0), 
+                "consumedBytes should indicate processed data");
         }
         
         // Test with corrupted data in the middle
-        if (streamData.Length > 20)
-        {
+        if (streamData.Length > 20) {
             var midPoint = streamData.Length / 2;
             var corruptedMiddle = streamData.Take(midPoint)
                 .Concat(new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF })
                 .Concat(streamData.Skip(midPoint + 7))
                 .ToArray();
             
-            var corruptedFrames = Cff.FindFrames(corruptedMiddle).ToList();
+            var corruptedFrames = Cff.FindFrames(corruptedMiddle, out var consumedBytes2).ToList();
             // Should find at least some frames even with corruption
             Assert.That(corruptedFrames.Count, Is.GreaterThan(0), 
                 "Should find at least one frame despite corruption");
+            // Verify that consumedBytes indicates data was processed
+            Assert.That(consumedBytes2, Is.GreaterThan(0), 
+                "consumedBytes should indicate processed data even with corruption");
         }
     }
 
@@ -305,8 +303,7 @@ public class CompactFrameFormatIntegrationTests
     public void PayloadVariety_VerifyDifferentTypes()
     {
         var payloads = new List<byte[]>();
-        foreach (var frameFile in _frameFiles)
-        {
+        foreach (var frameFile in _frameFiles) {
             var frameData = File.ReadAllBytes(frameFile);
             var result = Cff.TryParseFrame(frameData, out var frame, out _);
             Assert.That(result, Is.EqualTo(FrameParseResult.Success));
