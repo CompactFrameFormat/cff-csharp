@@ -4,13 +4,11 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace CompactFrameFormat
-{
+namespace CompactFrameFormat {
     /// <summary>
     /// Represents the result of frame parsing operations
     /// </summary>
-    public enum FrameParseResult
-    {
+    public enum FrameParseResult {
         Success,
         InsufficientData,
         InvalidPreamble,
@@ -21,8 +19,7 @@ namespace CompactFrameFormat
     /// <summary>
     /// Represents a parsed CFF frame
     /// </summary>
-    public readonly struct CFrame
-    {
+    public readonly struct CFrame {
         /// <summary>
         /// The frame counter value
         /// </summary>
@@ -53,8 +50,7 @@ namespace CompactFrameFormat
     /// <summary>
     /// Compact Frame Format implementation for creating, parsing, and finding frames in byte streams.
     /// </summary>
-    public static class Cff
-    {
+    public static class Cff {
         /// <summary>
         /// Frame preamble bytes: [0xFA, 0xCE]
         /// </summary>
@@ -306,4 +302,4 @@ namespace CompactFrameFormat
             return -1;
         }
     }
-} 
+}
