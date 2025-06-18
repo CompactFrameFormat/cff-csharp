@@ -333,7 +333,7 @@ public class CompactFrameFormatIntegrationTests {
         // Read the original stream
         var byteStream = File.ReadAllBytes(_streamFile);
         var expectedFrameCount = _frameFiles.Count;
-        
+
         // Test corruption at each byte position
         for (int corruptPos = 0; corruptPos < byteStream.Length; corruptPos++) {
             // Corrupt the byte at this position (flip all bits)

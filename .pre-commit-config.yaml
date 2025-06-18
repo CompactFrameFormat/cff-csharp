@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: dotnet-format
+        name: dotnet format
+        entry: dotnet format --verify-no-changes
+        language: system
+        files: \.(cs|csproj|sln)$
+        pass_filenames: false
+        description: 'Format C# code using dotnet format' 

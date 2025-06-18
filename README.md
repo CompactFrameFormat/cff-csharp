@@ -106,6 +106,8 @@ Clone the repository:
 ```powershell
 git clone https://github.com/CompactFrameFormat/cff-csharp.git
 cd cff-csharp
+pip install pre-commit
+pre-commit install
 ```
 
 Build the Solution:

@@ -287,7 +287,8 @@ namespace CompactFrameFormat {
                         var payloadSize = BinaryPrimitives.ReadUInt16LittleEndian(dataSpan.Slice(position + 4));
                         var totalFrameSize = HEADER_SIZE_BYTES + payloadSize + PAYLOAD_CRC_SIZE_BYTES;
                         position += Math.Min(totalFrameSize, dataSpan.Length - position);
-                    } else {
+                    }
+                    else {
                         // Not enough data to read payload size, skip past preamble
                         position += 2;
                     }
