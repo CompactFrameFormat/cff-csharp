@@ -275,8 +275,26 @@ namespace CompactFrameFormat {
                     // Not enough data for a complete frame, stop searching
                     break;
                 }
+                else if (result == FrameParseResult.InvalidHeaderCrc) {
+                    // Header CRC is invalid, so we can't trust the payload size
+                    // Skip past the preamble and continue searching
+                    position += 2;
+                }
+                else if (result == FrameParseResult.InvalidPayloadCrc) {
+                    // Header was valid (including CRC), so we can trust the payload size
+                    // Skip the entire frame based on the header information
+                    if (position + HEADER_SIZE_BYTES <= dataSpan.Length) {
+                        var payloadSize = BinaryPrimitives.ReadUInt16LittleEndian(dataSpan.Slice(position + 4));
+                        var totalFrameSize = HEADER_SIZE_BYTES + payloadSize + PAYLOAD_CRC_SIZE_BYTES;
+                        position += Math.Min(totalFrameSize, dataSpan.Length - position);
+                    } else {
+                        // Not enough data to read payload size, skip past preamble
+                        position += 2;
+                    }
+                }
                 else {
-                    // Invalid frame, skip past the preamble and continue searching
+                    // Other failure (e.g., InvalidPreamble - shouldn't happen since we found it)
+                    // Skip past the preamble and continue searching
                     position += 2;
                 }
             }
