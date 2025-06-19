@@ -234,4 +234,23 @@ public class UnitTests {
         Assert.That(consumedBytes, Is.EqualTo(expectedConsumed),
             "consumedBytes should reflect all processed data except last byte");
     }
+
+    [Test]
+    public void FindFrames_WithSmallBuffer_ReturnsNoFrames()
+    {
+        // Create a test frame with "Hello" payload
+        var testPayload = "Hello"u8;
+        var frameBytes = Cff.CreateFrame(testPayload, 123);
+
+        // Test parsing with every buffer size from 1 up to frame_size - 1
+        for (int bufferSize = 1; bufferSize < frameBytes.Length; bufferSize++) {
+            // Create a buffer slice of the specified size
+            var partialBuffer = frameBytes.AsMemory(0, bufferSize);
+
+            var frames = Cff.FindFrames(partialBuffer, out _).ToList();
+
+            // All partial buffer sizes should result in 0 frames parsed
+            Assert.That(frames.Count, Is.EqualTo(0), $"Buffer size {bufferSize} should not parse any complete frames");
+        }
+    }
 }
